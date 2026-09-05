@@ -190,3 +190,26 @@ footer { max-width: 1160px; margin: 0 auto; padding: 4px 28px 32px; font-size: 1
 
 /* Dense grid for compact dropdowns like Yes/No blocks */
 .field-grid.dense { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+
+/* OCR Paste Zone */
+.paste-zone {
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-weight: bold;
+  margin-bottom: 20px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.paste-zone.active {
+  background: var(--accent);
+  color: #fff;
+}
+.ocr-status {
+  font-size: 0.9em;
+  margin-top: 10px;
+  color: #555;
+}
