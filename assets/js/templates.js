@@ -1,62 +1,132 @@
 document.addEventListener("DOMContentLoaded", () => {
+  if (document.getElementById("nadForm") || document.getElementById("nadTemplateForm")) initNad();
   if (document.getElementById("returnedVisitsForm")) initReturnedVisits();
   if (document.getElementById("bookOffForm")) initBookOff();
 });
 
-// Helper: Formats staff & client names into 2x larger bold HTML text for Teams pasting
-function formatHighlightHTML(nameText) {
-  if (!nameText || nameText === "-" || nameText.startsWith("[")) {
-    return nameText;
-  }
-  // Renders 1.4x-2x larger, bold, with a soft background highlight for MS Teams
-  return `<span style="font-size: 1.4em; font-weight: bold; color: #000000; background-color: #e8f0fe; padding: 1px 4px; border-radius: 3px;">${nameText}</span>`;
-}
+/* =========================================
+   NAD (No Answer at Door) Engine
+   ========================================= */
+function initNad() {
+  const form = document.getElementById("nadForm") || document.getElementById("nadTemplateForm");
+  const noteOut = document.getElementById("noteOutput");
+  const teamsOut = document.getElementById("teamsOutput");
+  const feedback = document.getElementById("copyFeedback");
 
-// Helper: Async Clipboard copy that writes both HTML (for Teams) and Plain Text
-async function copyTeamsRichText(htmlString, plainString, feedbackEl) {
-  if (navigator.clipboard && window.ClipboardItem) {
-    try {
-      const htmlBlob = new Blob([htmlString], { type: "text/html" });
-      const textBlob = new Blob([plainString], { type: "text/plain" });
+  function generate() {
+    // 01: Visit Details
+    const rawDate = val("visitDate");
+    const date = formatDate(rawDate);
+    const time = orDash(val("visitTime"));
+    const priority = orDash(val("priority"));
+    const rawStaff = orDash(val("staffName"));
+    const htmlStaff = formatHighlightHTML(rawStaff);
+    const rawClients = orDash(val("clients"));
+    const htmlClients = formatHighlightHTML(rawClients);
 
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/html": htmlBlob,
-          "text/plain": textBlob
-        })
-      ]);
-      showFeedback(feedbackEl, "Copied formatted message for Teams!");
-      return;
-    } catch (err) {
-      console.warn("Clipboard API failed, attempting fallback copy...", err);
+    // 02: NAD Steps Completed
+    const staffReported = orDash(val("staffReported"));
+    const addressVerified = orDash(val("addressVerified"));
+    const entryInstructions = orDash(val("entryInstructions"));
+    const waited15 = orDash(val("waited15"));
+    const nadDesc = val("nadDesc") || val("description");
+
+    // 03: Client Contact Attempt
+    const clientCalled = orDash(val("clientCalled"));
+    const clientOutcome = orDash(val("clientOutcome"));
+    const clientDesc = val("clientDesc");
+
+    // 04: Contacts Called
+    const c1Name = val("c1Name");
+    const c1Outcome = val("c1Outcome");
+    const c1Desc = val("c1Desc");
+
+    const c2Name = val("c2Name");
+    const c2Outcome = val("c2Outcome");
+    const c2Desc = val("c2Desc");
+
+    // 05: ALA Notification
+    const alaNotified = orDash(val("alaNotified"));
+    const alaOffice = orDash(val("alaOffice"));
+    const alaMethod = orDash(val("alaMethod"));
+
+    // Line Formatter Helpers
+    const c1Line = (c1Name || c1Outcome || c1Desc)
+      ? `1. ${orDash(c1Name)} – ${orDash(c1Outcome)}${c1Desc ? ` - ${c1Desc}` : ""}`
+      : "1. -";
+
+    const c2Line = (c2Name || c2Outcome || c2Desc)
+      ? `2. ${orDash(c2Name)} – ${orDash(c2Outcome)}${c2Desc ? ` - ${c2Desc}` : ""}`
+      : "2. -";
+
+    // Build Procura Note
+    if (noteOut) {
+      noteOut.value = [
+        "Title - NAD",
+        "",
+        "Visit Details:",
+        `Date: ${date} | Time: ${time} | Priority: ${priority}`,
+        `Staff Name: ${rawStaff}`,
+        "",
+        "NAD Steps Completed:",
+        `Staff reported NAD: ${staffReported}`,
+        `Address verified with staff: ${addressVerified}`,
+        `Entry instructions followed, if applicable: ${entryInstructions}`,
+        `Staff waited 15 minutes: ${waited15}${nadDesc ? ` - ${nadDesc}` : ""}`,
+        "",
+        "Client Contact Attempt:",
+        `Client called: ${clientCalled}`,
+        `Outcome: ${clientOutcome}${clientDesc ? ` - ${clientDesc}` : ""}`,
+        "",
+        "Contacts Called:",
+        c1Line,
+        c2Line,
+        "",
+        "ALA Notification:",
+        `ALA notified: ${alaNotified} | ALA office/site notified: ${alaOffice}`,
+        `Method: ${alaMethod}`
+      ].join("\n");
+    }
+
+    // Build Teams Output
+    const tDate = isToday(rawDate) ? "today" : (date !== dash ? date : "[date]");
+    const teamsHTML = `Staff ${htmlStaff} reported NAD for client ${htmlClients} ${tDate}.`;
+    const teamsPlain = `Staff ${rawStaff} reported NAD for client ${rawClients} ${tDate}.`;
+
+    if (teamsOut) {
+      if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
+        teamsOut.value = teamsPlain;
+      } else {
+        teamsOut.innerHTML = teamsHTML;
+        teamsOut.dataset.plainText = teamsPlain;
+      }
     }
   }
 
-  // Fallback for older browsers
-  const hiddenDiv = document.createElement("div");
-  hiddenDiv.innerHTML = htmlString;
-  hiddenDiv.style.position = "fixed";
-  hiddenDiv.style.left = "-9999px";
-  document.body.appendChild(hiddenDiv);
+  setTodayDate("visitDate");
 
-  const range = document.createRange();
-  range.selectNodeContents(hiddenDiv);
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
+  if (form) {
+    form.addEventListener("input", generate);
+    form.addEventListener("change", generate);
+  }
 
-  document.execCommand("copy");
-  selection.removeAllRanges();
-  document.body.removeChild(hiddenDiv);
+  const copyNoteBtn = document.getElementById("copyNoteBtn");
+  if (copyNoteBtn) {
+    copyNoteBtn.addEventListener("click", () => copyText(noteOut, feedback, generate));
+  }
 
-  showFeedback(feedbackEl, "Copied for Teams!");
-}
+  const copyTeamsBtn = document.getElementById("copyTeamsBtn");
+  if (copyTeamsBtn) {
+    copyTeamsBtn.addEventListener("click", () => {
+      generate();
+      if (!teamsOut) return;
+      const htmlContent = teamsOut.innerHTML || teamsOut.value;
+      const plainContent = teamsOut.dataset ? teamsOut.dataset.plainText : teamsOut.value;
+      copyTeamsRichText(htmlContent, plainContent, feedback);
+    });
+  }
 
-function showFeedback(el, msg) {
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = "block";
-  setTimeout(() => { el.style.display = "none"; }, 2500);
+  generate();
 }
 
 /* =========================================
@@ -82,9 +152,8 @@ function initReturnedVisits() {
     const rawClients = orDash(val("clients"));
     const htmlClients = formatHighlightHTML(rawClients);
 
-    const description = document.getElementById("description") ? document.getElementById("description").value : "";
+    const description = val("description");
 
-    // Plain text version for standard Note copy
     if (noteOut) {
       noteOut.value = [
         "Title - Returned Visits Book Off",
@@ -101,18 +170,25 @@ function initReturnedVisits() {
     const tKeyword = keyword !== dash ? keyword : "[keyword]";
     const tVisits = numVisits !== dash ? `${numVisits}` : "[number of]";
 
-    // Teams Rich HTML output
     const teamsHTML = `Staff ${htmlStaff} returned visit for ${htmlClients} ${tDate}, ${tKeyword}. ${tVisits} back to planner.`;
-    const teamsPlain = `Staff ${rawStaff} returned visit for ${rawClients} ${tDate}, ${tKeyword}. ${tVisits} back to planner.`;
+    const teamsPlain = `Staff ${rawStaff} returned visit for ${rawClients} ${tDate}.`;
 
     if (teamsOut) {
-      teamsOut.innerHTML = teamsHTML;
-      teamsOut.dataset.plainText = teamsPlain;
+      if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
+        teamsOut.value = teamsPlain;
+      } else {
+        teamsOut.innerHTML = teamsHTML;
+        teamsOut.dataset.plainText = teamsPlain;
+      }
     }
   }
 
   setTodayDate("visitDate");
-  form.addEventListener("input", generate);
+
+  if (form) {
+    form.addEventListener("input", generate);
+    form.addEventListener("change", generate);
+  }
 
   const copyNoteBtn = document.getElementById("copyNoteBtn");
   if (copyNoteBtn) {
@@ -123,7 +199,10 @@ function initReturnedVisits() {
   if (copyTeamsBtn) {
     copyTeamsBtn.addEventListener("click", () => {
       generate();
-      copyTeamsRichText(teamsOut.innerHTML, teamsOut.dataset.plainText, feedback);
+      if (!teamsOut) return;
+      const htmlContent = teamsOut.innerHTML || teamsOut.value;
+      const plainContent = teamsOut.dataset ? teamsOut.dataset.plainText : teamsOut.value;
+      copyTeamsRichText(htmlContent, plainContent, feedback);
     });
   }
 
@@ -155,9 +234,8 @@ function initBookOff() {
     const numVisits = orDash(val("numVisits"));
     const hoursReturned = formatHours(val("hoursReturned"), val("minutesReturned"));
     const keyword = orDash(val("keyword"));
-    const description = document.getElementById("description") ? document.getElementById("description").value : "";
+    const description = val("description");
 
-    // Plain text for CRM/system note
     if (noteOut) {
       noteOut.value = [
         `Title - Staff Book Off (${typeTitle})`,
@@ -177,18 +255,25 @@ function initBookOff() {
     const clientClause = htmlClients ? ` for client ${htmlClients}` : "";
     const clientPlainClause = rawClients ? ` for client ${rawClients}` : "";
 
-    // Teams Rich HTML output
     const teamsHTML = `Staff ${htmlStaff} booked off for ${tDate} for ${tType}${clientClause} because of ${tKeyword}. ${tVisits} back to planner.`;
     const teamsPlain = `Staff ${rawStaff} booked off for ${tDate} for ${tType}${clientPlainClause} because of ${tKeyword}. ${tVisits} back to planner.`;
 
     if (teamsOut) {
-      teamsOut.innerHTML = teamsHTML;
-      teamsOut.dataset.plainText = teamsPlain;
+      if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
+        teamsOut.value = teamsPlain;
+      } else {
+        teamsOut.innerHTML = teamsHTML;
+        teamsOut.dataset.plainText = teamsPlain;
+      }
     }
   }
 
   setTodayDate("visitDate");
-  form.addEventListener("input", generate);
+
+  if (form) {
+    form.addEventListener("input", generate);
+    form.addEventListener("change", generate);
+  }
 
   const copyNoteBtn = document.getElementById("copyNoteBtn");
   if (copyNoteBtn) {
@@ -199,7 +284,10 @@ function initBookOff() {
   if (copyTeamsBtn) {
     copyTeamsBtn.addEventListener("click", () => {
       generate();
-      copyTeamsRichText(teamsOut.innerHTML, teamsOut.dataset.plainText, feedback);
+      if (!teamsOut) return;
+      const htmlContent = teamsOut.innerHTML || teamsOut.value;
+      const plainContent = teamsOut.dataset ? teamsOut.dataset.plainText : teamsOut.value;
+      copyTeamsRichText(htmlContent, plainContent, feedback);
     });
   }
 

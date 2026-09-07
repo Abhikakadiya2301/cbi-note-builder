@@ -1,79 +1,120 @@
-const dash = "—";
+const dash = "-";
 
 function val(id) {
   const el = document.getElementById(id);
-  return el ? el.value.trim() : "";
+  return el && el.value !== undefined ? el.value.trim() : "";
 }
 
-function orDash(s) {
-  return s && s.length ? s : dash;
+function orDash(str) {
+  return str && str !== "" ? str : dash;
 }
 
-function formatDate(raw) {
-  if (!raw) return dash;
-  const parts = raw.split("-");
-  if (parts.length !== 3) return raw;
-  const [y, m, d] = parts;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const mi = parseInt(m, 10) - 1;
-  if (mi < 0 || mi > 11) return raw;
-  return `${months[mi]} ${parseInt(d, 10)}, ${y}`;
+function formatDate(dateStr) {
+  if (!dateStr) return dash;
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  return `${parts[1]}/${parts[2]}/${parts[0]}`;
+}
+
+function isToday(dateStr) {
+  if (!dateStr) return false;
+  const today = new Date().toISOString().split("T")[0];
+  return dateStr === today;
+}
+
+function setTodayDate(id) {
+  const el = document.getElementById(id);
+  if (el && !el.value) {
+    el.value = new Date().toISOString().split("T")[0];
+  }
 }
 
 function formatHours(h, m) {
-  if (!h && !m) return dash;
-  const hh = h || "0";
-  const mm = m || "00";
-  return `${hh}h ${mm}m`;
+  const hours = parseInt(h, 10) || 0;
+  const mins = parseInt(m, 10) || 0;
+  if (hours === 0 && mins === 0) return dash;
+  return `${hours}h ${mins}m`;
 }
 
-function isToday(rawDateString) {
-  if (!rawDateString) return false;
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  return rawDateString === `${yyyy}-${mm}-${dd}`;
-}
-
-function setTodayDate(inputId) {
-  const dateInput = document.getElementById(inputId);
-  if (!dateInput) return;
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  dateInput.value = `${yyyy}-${mm}-${dd}`;
-}
-
-function copyText(targetElement, feedbackElement, generateCallback) {
-  if (!targetElement.value && generateCallback) generateCallback();
-  const text = targetElement.value;
-
-  function showFeedback() {
-    if(!feedbackElement) return;
-    feedbackElement.classList.add("show");
-    clearTimeout(feedbackElement._t);
-    feedbackElement._t = setTimeout(() => {
-      feedbackElement.classList.remove("show");
-    }, 2200);
+function formatHighlightHTML(nameText) {
+  if (!nameText || nameText === "-" || nameText.startsWith("[")) {
+    return nameText;
   }
+  return `<span style="font-size: 1.4em; font-weight: bold; color: #000000; background-color: #e8f0fe; padding: 1px 4px; border-radius: 3px;">${nameText}</span>`;
+}
 
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(showFeedback).catch(() => fallbackCopy(targetElement, showFeedback));
+function showFeedback(el, msg) {
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 2500);
+}
+
+function copyText(inputEl, feedbackEl, generateFn) {
+  if (generateFn) generateFn();
+  if (!inputEl) return;
+
+  const textToCopy = inputEl.value !== undefined ? inputEl.value : inputEl.innerText;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      showFeedback(feedbackEl, "Copied Note!");
+    }).catch(() => {
+      fallbackCopyText(inputEl, feedbackEl);
+    });
   } else {
-    fallbackCopy(targetElement, showFeedback);
+    fallbackCopyText(inputEl, feedbackEl);
   }
 }
 
-function fallbackCopy(targetElement, cb) {
-  targetElement.removeAttribute("readonly");
-  targetElement.focus();
-  targetElement.select();
-  try {
-    document.execCommand("copy");
-    if(cb) cb();
-  } catch (e) {} finally {
-    targetElement.setAttribute("readonly", "true");
+function fallbackCopyText(inputEl, feedbackEl) {
+  if (!inputEl) return;
+  if (inputEl.select) {
+    inputEl.select();
+  } else {
+    const range = document.createRange();
+    range.selectNodeContents(inputEl);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
+  document.execCommand("copy");
+  showFeedback(feedbackEl, "Copied Note!");
+}
+
+async function copyTeamsRichText(htmlString, plainString, feedbackEl) {
+  if (navigator.clipboard && window.ClipboardItem) {
+    try {
+      const htmlBlob = new Blob([htmlString], { type: "text/html" });
+      const textBlob = new Blob([plainString], { type: "text/plain" });
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": htmlBlob,
+          "text/plain": textBlob
+        })
+      ]);
+      showFeedback(feedbackEl, "Copied formatted message for Teams!");
+      return;
+    } catch (err) {
+      console.warn("Clipboard API fallback execution...", err);
+    }
+  }
+
+  const hiddenDiv = document.createElement("div");
+  hiddenDiv.innerHTML = htmlString;
+  hiddenDiv.style.position = "fixed";
+  hiddenDiv.style.left = "-9999px";
+  document.body.appendChild(hiddenDiv);
+
+  const range = document.createRange();
+  range.selectNodeContents(hiddenDiv);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  document.execCommand("copy");
+  selection.removeAllRanges();
+  document.body.removeChild(hiddenDiv);
+
+  showFeedback(feedbackEl, "Copied for Teams!");
 }

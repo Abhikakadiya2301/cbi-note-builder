@@ -37,6 +37,7 @@
           <label for="visitTime">Time</label>
           <input type="text" id="visitTime" placeholder="e.g., 09:00 - 10:00 or 1400">
         </div>
+        <div class="field"><label for="staffName">Staff Name</label><input type="text" id="staffName" placeholder="Staff Name"></div>
         <div class="field">
           <label for="priority">Priority</label>
           <select id="priority">
@@ -48,7 +49,6 @@
             <option value="LPN">LPN</option>
           </select>
         </div>
-        <div class="field"><label for="staffName">Staff Name</label><input type="text" id="staffName"></div>
       </div>
     </section>
 
@@ -164,13 +164,8 @@
         <label for="noteOutput">Procura Note</label>
         <textarea id="noteOutput" readonly style="min-height: 400px;"></textarea>
       </div>
-      <div class="textarea-group">
-        <label for="teamsOutput">Teams Message</label>
-        <textarea id="teamsOutput" readonly></textarea>
-      </div>
       <div class="btn-row">
         <button type="button" class="btn-primary" id="copyNoteBtn">Copy Note</button>
-        <button type="button" class="btn-secondary" id="copyTeamsBtn">Copy Teams MSG</button>
       </div>
       <div id="copyFeedback" class="copy-feedback">Copied to clipboard!</div>
     </div>
