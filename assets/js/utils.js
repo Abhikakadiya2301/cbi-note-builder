@@ -16,16 +16,53 @@ function formatDate(dateStr) {
   return `${parts[1]}/${parts[2]}/${parts[0]}`;
 }
 
-function isToday(dateStr) {
-  if (!dateStr) return false;
-  const today = new Date().toISOString().split("T")[0];
-  return dateStr === today;
+// Get exact current local date in YYYY-MM-DD format (prevents UTC evening offset bug)
+function getTodayString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
+function isToday(dateStr) {
+  if (!dateStr) return false;
+  return dateStr === getTodayString();
+}
+
+function getTeamsDate(dateStr) {
+  if (!dateStr) return "[date]";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return "[date]";
+
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+
+  const targetDate = new Date(year, month, day);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  if (targetDate.getTime() === today.getTime()) {
+    return "today";
+  } else if (targetDate.getTime() === tomorrow.getTime()) {
+    return "tomorrow";
+  } else {
+    const formatted = formatDate(dateStr);
+    return formatted !== dash ? formatted : "[date]";
+  }
+}
+
+// Always sets the field default to the local current date
 function setTodayDate(id) {
   const el = document.getElementById(id);
-  if (el && !el.value) {
-    el.value = new Date().toISOString().split("T")[0];
+  if (el) {
+    el.value = getTodayString();
   }
 }
 

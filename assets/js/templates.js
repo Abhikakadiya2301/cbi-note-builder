@@ -14,7 +14,6 @@ function initNad() {
   const feedback = document.getElementById("copyFeedback");
 
   function generate() {
-    // 01: Visit Details
     const rawDate = val("visitDate");
     const date = formatDate(rawDate);
     const time = orDash(val("visitTime"));
@@ -24,19 +23,16 @@ function initNad() {
     const rawClients = orDash(val("clients"));
     const htmlClients = formatHighlightHTML(rawClients);
 
-    // 02: NAD Steps Completed
     const staffReported = orDash(val("staffReported"));
     const addressVerified = orDash(val("addressVerified"));
     const entryInstructions = orDash(val("entryInstructions"));
     const waited15 = orDash(val("waited15"));
     const nadDesc = val("nadDesc") || val("description");
 
-    // 03: Client Contact Attempt
     const clientCalled = orDash(val("clientCalled"));
     const clientOutcome = orDash(val("clientOutcome"));
     const clientDesc = val("clientDesc");
 
-    // 04: Contacts Called
     const c1Name = val("c1Name");
     const c1Outcome = val("c1Outcome");
     const c1Desc = val("c1Desc");
@@ -45,12 +41,10 @@ function initNad() {
     const c2Outcome = val("c2Outcome");
     const c2Desc = val("c2Desc");
 
-    // 05: ALA Notification
     const alaNotified = orDash(val("alaNotified"));
     const alaOffice = orDash(val("alaOffice"));
     const alaMethod = orDash(val("alaMethod"));
 
-    // Line Formatter Helpers
     const c1Line = (c1Name || c1Outcome || c1Desc)
       ? `1. ${orDash(c1Name)} – ${orDash(c1Outcome)}${c1Desc ? ` - ${c1Desc}` : ""}`
       : "1. -";
@@ -59,7 +53,6 @@ function initNad() {
       ? `2. ${orDash(c2Name)} – ${orDash(c2Outcome)}${c2Desc ? ` - ${c2Desc}` : ""}`
       : "2. -";
 
-    // Build Procura Note
     if (noteOut) {
       noteOut.value = [
         "Title - NAD",
@@ -88,8 +81,7 @@ function initNad() {
       ].join("\n");
     }
 
-    // Build Teams Output
-    const tDate = isToday(rawDate) ? "today" : (date !== dash ? date : "[date]");
+    const tDate = getTeamsDate(rawDate);
     const teamsHTML = `Staff ${htmlStaff} reported NAD for client ${htmlClients} ${tDate}.`;
     const teamsPlain = `Staff ${rawStaff} reported NAD for client ${rawClients} ${tDate}.`;
 
@@ -166,12 +158,12 @@ function initReturnedVisits() {
       ].join("\n");
     }
 
-    const tDate = isToday(rawDate) ? "today" : (date !== dash ? date : "[date]");
+    const tDate = getTeamsDate(rawDate);
     const tKeyword = keyword !== dash ? keyword : "[keyword]";
     const tVisits = numVisits !== dash ? `${numVisits}` : "[number of]";
 
     const teamsHTML = `Staff ${htmlStaff} returned visit for ${htmlClients} ${tDate}, ${tKeyword}. ${tVisits} back to planner.`;
-    const teamsPlain = `Staff ${rawStaff} returned visit for ${rawClients} ${tDate}.`;
+    const teamsPlain = `Staff ${rawStaff} returned visit for ${rawClients} ${tDate}, ${tKeyword}. ${tVisits} back to planner.`;
 
     if (teamsOut) {
       if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
@@ -248,7 +240,7 @@ function initBookOff() {
       ].filter(Boolean).join("\n");
     }
 
-    const tDate = isToday(rawDate) ? "today" : (date !== dash ? date : "[date]");
+    const tDate = getTeamsDate(rawDate);
     const tType = rawType || "[full day/partial day]";
     const tKeyword = keyword !== dash ? keyword : "[keyword]";
     const tVisits = numVisits !== dash ? `${numVisits} visit(s)` : "[No of] visits";
