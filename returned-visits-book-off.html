@@ -12,6 +12,108 @@
     --accent-soft: var(--returned-soft);
     --focus: var(--returned-focus);
   }
+
+  /* Calendar Component Styling */
+  .calendar-container {
+    width: 100%;
+    max-width: 320px;
+    background: #ffffff;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .cal-nav-btn {
+    background: #f4f4f5;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  .cal-nav-btn:hover {
+    background: #e9e9eb;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+  }
+  .day-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #909399;
+    padding-bottom: 4px;
+  }
+  .date-cell {
+    padding: 8px 0;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    background-color: #fafafa;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .date-cell:hover:not(.empty) {
+    background-color: #e6f7ff;
+  }
+  .date-cell.selected {
+    background-color: #0056b3;
+    color: #ffffff;
+    font-weight: bold;
+  }
+  .date-cell.empty {
+    background: transparent;
+    cursor: default;
+  }
+  .date-picker-wrapper {
+  position: relative;
+}
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-with-icon input {
+  width: 100%;
+  padding-right: 40px;
+  cursor: pointer;
+  background-color: #fff;
+}
+.cal-toggle-btn {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 4px;
+}
+.cal-toggle-btn:hover {
+  background-color: #f0f0f0;
+}
+.calendar-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  margin-top: 6px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
 </style>
   <script src="assets/js/privacy-banner.js"></script>
 </head>
@@ -35,9 +137,20 @@
         <h2>Visit Details</h2>
       </div>
       <div class="field-grid">
-        <div class="field full">
-          <label for="visitDate">Date</label>
-          <input type="date" id="visitDate">
+        <div class="field full date-picker-wrapper">
+          <label for="rvDateInput">Date</label>
+          <div class="input-with-icon">
+            <input type="text" id="rvDateInput" readonly placeholder="Select date(s)">
+            <button type="button" class="cal-toggle-btn" id="rvCalToggleBtn" aria-label="Toggle calendar">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </button>
+          </div>
+          <div id="rvCalendarContainer" class="calendar-popover" style="display: none;"></div>
         </div>
         <div class="field full">
           <label for="staffName">Staff Name</label>

@@ -4,8 +4,50 @@ document.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("bookOffForm")) initBookOff();
 });
 
+/* Helper to setup popover multi-date picker */
+function setupCalendarPopover(inputId, toggleBtnId, containerId, onDateChange) {
+  const input = document.getElementById(inputId);
+  const toggleBtn = document.getElementById(toggleBtnId);
+  const container = document.getElementById(containerId);
+
+  if (!input || !container) return null;
+
+  const calendar = new MultiDateCalendar(containerId, (selectedDates) => {
+    input.value = formatDateArrayForNote(selectedDates);
+    onDateChange(selectedDates);
+  });
+
+  // Set default date in text input immediately on load
+  const initialDates = calendar.getSelectedDates();
+  input.value = formatDateArrayForNote(initialDates);
+
+  function toggleCalendar(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const isHidden = container.style.display === "none" || container.style.display === "";
+    container.style.display = isHidden ? "block" : "none";
+  }
+
+  if (toggleBtn) toggleBtn.addEventListener("click", toggleCalendar);
+  input.addEventListener("click", toggleCalendar);
+
+  document.addEventListener("click", (e) => {
+    if (
+      container.style.display !== "none" &&
+      !container.contains(e.target) &&
+      e.target !== input &&
+      e.target !== toggleBtn &&
+      !toggleBtn?.contains(e.target)
+    ) {
+      container.style.display = "none";
+    }
+  });
+
+  return calendar;
+}
+
 /* =========================================
-   NAD (No Answer at Door) Engine
+   NAD Engine
    ========================================= */
 function initNad() {
   const form = document.getElementById("nadForm") || document.getElementById("nadTemplateForm");
@@ -122,7 +164,7 @@ function initNad() {
 }
 
 /* =========================================
-   Returned Visits Engine
+   Returned Visits Engine (Popover Multi-Date)
    ========================================= */
 function initReturnedVisits() {
   const form = document.getElementById("returnedVisitsForm");
@@ -130,9 +172,14 @@ function initReturnedVisits() {
   const teamsOut = document.getElementById("teamsOutput");
   const feedback = document.getElementById("copyFeedback");
 
+  const calendar = setupCalendarPopover("rvDateInput", "rvCalToggleBtn", "rvCalendarContainer", () => {
+    generate();
+  });
+
   function generate() {
-    const rawDate = val("visitDate");
-    const date = formatDate(rawDate);
+    const selectedDates = calendar ? calendar.getSelectedDates() : [getTodayString()];
+    const dateNoteDisplay = formatDateArrayForNote(selectedDates);
+    const dateTeamsDisplay = formatDateArrayForTeams(selectedDates);
 
     const rawStaff = orDash(val("staffName"));
     const htmlStaff = formatHighlightHTML(rawStaff);
@@ -149,7 +196,7 @@ function initReturnedVisits() {
     if (noteOut) {
       noteOut.value = [
         "Title - Returned Visits Book Off",
-        `Date: ${date} | Staff Name: ${rawStaff}`,
+        `Date: ${dateNoteDisplay} | Staff Name: ${rawStaff}`,
         `Number of visits returned: ${numVisits}`,
         `Total hours returned: ${hoursReturned}`,
         `Keyword/Reason: ${keyword}`,
@@ -158,12 +205,11 @@ function initReturnedVisits() {
       ].join("\n");
     }
 
-    const tDate = getTeamsDate(rawDate);
     const tKeyword = keyword !== dash ? keyword : "[keyword]";
     const tVisits = numVisits !== dash ? `${numVisits}` : "[number of]";
 
-    const teamsHTML = `Staff ${htmlStaff} returned visit for ${htmlClients} ${tDate}, ${tKeyword}. ${tVisits} back to planner.`;
-    const teamsPlain = `Staff ${rawStaff} returned visit for ${rawClients} ${tDate}, ${tKeyword}. ${tVisits} back to planner.`;
+    const teamsHTML = `Staff ${htmlStaff} returned visit for ${htmlClients} ${dateTeamsDisplay}, ${tKeyword}. ${tVisits} back to planner.`;
+    const teamsPlain = `Staff ${rawStaff} returned visit for ${rawClients} ${dateTeamsDisplay}, ${tKeyword}. ${tVisits} back to planner.`;
 
     if (teamsOut) {
       if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
@@ -174,8 +220,6 @@ function initReturnedVisits() {
       }
     }
   }
-
-  setTodayDate("visitDate");
 
   if (form) {
     form.addEventListener("input", generate);
@@ -202,7 +246,7 @@ function initReturnedVisits() {
 }
 
 /* =========================================
-   Book Off Engine
+   Book Off Engine (Popover Multi-Date)
    ========================================= */
 function initBookOff() {
   const form = document.getElementById("bookOffForm");
@@ -210,9 +254,14 @@ function initBookOff() {
   const teamsOut = document.getElementById("teamsOutput");
   const feedback = document.getElementById("copyFeedback");
 
+  const calendar = setupCalendarPopover("boDateInput", "boCalToggleBtn", "boCalendarContainer", () => {
+    generate();
+  });
+
   function generate() {
-    const rawDate = val("visitDate");
-    const date = formatDate(rawDate);
+    const selectedDates = calendar ? calendar.getSelectedDates() : [getTodayString()];
+    const dateNoteDisplay = formatDateArrayForNote(selectedDates);
+    const dateTeamsDisplay = formatDateArrayForTeams(selectedDates);
 
     const rawType = val("bookOffType");
     const typeTitle = rawType === "full day" ? "Full Day" : (rawType === "partial day" ? "Partial Day" : "Partial/Full Day");
@@ -231,7 +280,7 @@ function initBookOff() {
     if (noteOut) {
       noteOut.value = [
         `Title - Staff Book Off (${typeTitle})`,
-        `Date: ${date} | Staff Name: ${rawStaff}`,
+        `Date: ${dateNoteDisplay} | Staff Name: ${rawStaff}`,
         rawClients ? `Client(s): ${rawClients}` : "",
         `Number of visits: ${numVisits}`,
         `Total hours returned: ${hoursReturned}`,
@@ -240,15 +289,14 @@ function initBookOff() {
       ].filter(Boolean).join("\n");
     }
 
-    const tDate = getTeamsDate(rawDate);
     const tType = rawType || "[full day/partial day]";
     const tKeyword = keyword !== dash ? keyword : "[keyword]";
     const tVisits = numVisits !== dash ? `${numVisits} visit(s)` : "[No of] visits";
     const clientClause = htmlClients ? ` for client ${htmlClients}` : "";
     const clientPlainClause = rawClients ? ` for client ${rawClients}` : "";
 
-    const teamsHTML = `Staff ${htmlStaff} booked off for ${tDate} for ${tType}${clientClause} because of ${tKeyword}. ${tVisits} back to planner.`;
-    const teamsPlain = `Staff ${rawStaff} booked off for ${tDate} for ${tType}${clientPlainClause} because of ${tKeyword}. ${tVisits} back to planner.`;
+    const teamsHTML = `Staff ${htmlStaff} booked off for ${dateTeamsDisplay} for ${tType}${clientClause} because of ${tKeyword}. ${tVisits} back to planner.`;
+    const teamsPlain = `Staff ${rawStaff} booked off for ${dateTeamsDisplay} for ${tType}${clientPlainClause} because of ${tKeyword}. ${tVisits} back to planner.`;
 
     if (teamsOut) {
       if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
@@ -259,8 +307,6 @@ function initBookOff() {
       }
     }
   }
-
-  setTodayDate("visitDate");
 
   if (form) {
     form.addEventListener("input", generate);

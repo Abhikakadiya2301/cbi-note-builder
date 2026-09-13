@@ -3,14 +3,132 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CBI Book Off Template Builder</title>
+<title>CBI Returned Visits Book Off Template</title>
 <link rel="stylesheet" href="assets/css/global.css">
 <style>
   :root {
-    --accent: var(--bookoff);
-    --accent-dark: var(--bookoff-dark);
-    --accent-soft: var(--bookoff-soft);
-    --focus: var(--bookoff-focus);
+    --accent: var(--returned);
+    --accent-dark: var(--returned-dark);
+    --accent-soft: var(--returned-soft);
+    --focus: var(--returned-focus);
+  }
+
+  /* Calendar Component Styling */
+  .calendar-container {
+    width: 100%;
+    max-width: 320px;
+    background: #ffffff;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .cal-nav-btn {
+    background: #f4f4f5;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  .cal-nav-btn:hover {
+    background: #e9e9eb;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+  }
+  .day-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #909399;
+    padding-bottom: 4px;
+  }
+  .date-cell {
+    padding: 8px 0;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    background-color: #fafafa;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .date-cell:hover:not(.empty) {
+    background-color: #e6f7ff;
+  }
+  .date-cell.selected {
+    background-color: #0056b3;
+    color: #ffffff;
+    font-weight: bold;
+  }
+  .date-cell.empty {
+    background: transparent;
+    cursor: default;
+  }
+
+  /* Popover & Input Styling */
+  .card, .field, .date-picker-wrapper {
+    overflow: visible !important;
+  }
+
+  .date-picker-wrapper {
+    position: relative !important;
+  }
+
+  .input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-with-icon input {
+    width: 100%;
+    padding-right: 42px;
+    cursor: pointer;
+    background-color: #ffffff;
+  }
+
+  .cal-toggle-btn {
+    position: absolute;
+    right: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #333333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 4px;
+  }
+
+  .cal-toggle-btn svg {
+    pointer-events: none;
+  }
+
+  .cal-toggle-btn:hover {
+    background-color: #f0f0f0;
+  }
+
+  .calendar-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 9999 !important;
+    margin-top: 6px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
   }
 </style>
   <script src="assets/js/privacy-banner.js"></script>
@@ -20,14 +138,14 @@
 <header class="app-header">
   <span class="mark" aria-hidden="true"></span>
   <div>
-    <h1>Book Off Template Builder</h1>
-    <div class="sub">Staff Book Off — Partial Day / Full Day</div>
+    <h1>Returned Visits Book Off</h1>
+    <div class="sub">Visits returned due to a staff book off</div>
   </div>
   <a class="back" href="index.html">&larr; All templates</a>
 </header>
 
 <main>
-  <form id="bookOffForm" autocomplete="off">
+  <form id="returnedVisitsForm" autocomplete="off">
     <!-- Step 01: Visit Details -->
     <section class="card">
       <div class="eyebrow">
@@ -35,23 +153,27 @@
         <h2>Visit Details</h2>
       </div>
       <div class="field-grid">
-        <div class="field">
-          <label for="visitDate">Date</label>
-          <input type="date" id="visitDate">
-        </div>
-        <div class="field">
-          <label for="bookOffType">Book Off Type</label>
-          <select id="bookOffType">
-            <option value="full day">Full Day</option>
-            <option value="partial day">Partial Day</option>
-          </select>
+        <div class="field full date-picker-wrapper">
+          <label for="rvDateInput">Date</label>
+          <div class="input-with-icon">
+            <input type="text" id="rvDateInput" readonly placeholder="Select date(s)">
+            <button type="button" class="cal-toggle-btn" id="rvCalToggleBtn" aria-label="Toggle calendar">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </button>
+          </div>
+          <div id="rvCalendarContainer" class="calendar-popover" style="display: none;"></div>
         </div>
         <div class="field full">
           <label for="staffName">Staff Name</label>
-          <input type="text" id="staffName" placeholder="e.g., Jane Doe">
+          <input type="text" id="staffName" placeholder="e.g., John Smith">
         </div>
         <div class="field">
-          <label for="numVisits">Number of visits</label>
+          <label for="numVisits">Number of visits returned</label>
           <input type="number" id="numVisits" min="0" placeholder="0">
         </div>
         <div class="field">
@@ -96,8 +218,12 @@
           </select>
         </div>
         <div class="field full">
+          <label for="clients">Client(s) Affected</label>
+          <input type="text" id="clients" placeholder="List client names or IDs">
+        </div>
+        <div class="field full">
           <label for="description">Description</label>
-          <textarea id="description" placeholder="Briefly describe the situation (e.g., has a fever and sore throat since last night)..."></textarea>
+          <textarea id="description" placeholder="Provide additional context (e.g., client has dogs, staff has severe allergy)..."></textarea>
         </div>
       </div>
     </section>
@@ -130,8 +256,9 @@
   </div>
 </main>
 
-<footer>CBI Book Off Template Builder — data stays in your browser; nothing is transmitted or stored.</footer>
+<footer>CBI Returned Visits Book Off Template Builder — data stays in your browser; nothing is transmitted or stored.</footer>
 <script src="assets/js/utils.js"></script>
+<script src="assets/js/calendar.js"></script>
 <script src="assets/js/templates.js"></script>
 </body>
 </html>

@@ -9,14 +9,128 @@ function orDash(str) {
   return str && str !== "" ? str : dash;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return dash;
-  const parts = dateStr.split("-");
-  if (parts.length !== 3) return dateStr;
-  return `${parts[1]}/${parts[2]}/${parts[0]}`;
+/* =========================================
+   Interactive Multi-Date Calendar Class
+   ========================================= */
+class MultiDateCalendar {
+  constructor(containerId, onChangeCallback) {
+    this.container = typeof containerId === "string" ? document.getElementById(containerId) : containerId;
+    this.onChangeCallback = onChangeCallback;
+
+    // Default pre-select today's local date
+    const todayStr = getTodayString();
+    this.selectedDates = new Set([todayStr]);
+
+    const today = new Date();
+    this.currentViewDate = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    this.render();
+  }
+
+  getSelectedDates() {
+    return Array.from(this.selectedDates).sort();
+  }
+
+  render() {
+    if (!this.container) return;
+    this.container.innerHTML = "";
+
+    const year = this.currentViewDate.getFullYear();
+    const month = this.currentViewDate.getMonth();
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "calendar-container";
+
+    const header = document.createElement("div");
+    header.className = "calendar-header";
+
+    const prevBtn = document.createElement("button");
+    prevBtn.type = "button";
+    prevBtn.innerHTML = "&#8249;";
+    prevBtn.className = "cal-nav-btn";
+    prevBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.currentViewDate.setMonth(this.currentViewDate.getMonth() - 1);
+      this.render();
+    });
+
+    const monthLabel = document.createElement("span");
+    monthLabel.className = "month-label";
+    monthLabel.style.fontWeight = "bold";
+    monthLabel.textContent = this.currentViewDate.toLocaleString("default", { month: "long", year: "numeric" });
+
+    const nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.innerHTML = "&#8250;";
+    nextBtn.className = "cal-nav-btn";
+    nextBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.currentViewDate.setMonth(this.currentViewDate.getMonth() + 1);
+      this.render();
+    });
+
+    header.appendChild(prevBtn);
+    header.appendChild(monthLabel);
+    header.appendChild(nextBtn);
+    wrapper.appendChild(header);
+
+    const grid = document.createElement("div");
+    grid.className = "calendar-grid";
+
+    const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    dayLabels.forEach((label) => {
+      const headerCell = document.createElement("div");
+      headerCell.className = "day-header";
+      headerCell.textContent = label;
+      grid.appendChild(headerCell);
+    });
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < firstDayIndex; i++) {
+      const emptyCell = document.createElement("div");
+      emptyCell.className = "date-cell empty";
+      grid.appendChild(emptyCell);
+    }
+
+    for (let day = 1; day <= totalDaysInMonth; day++) {
+      const monthFormatted = String(month + 1).padStart(2, "0");
+      const dayFormatted = String(day).padStart(2, "0");
+      const dateKey = `${year}-${monthFormatted}-${dayFormatted}`;
+
+      const cell = document.createElement("div");
+      cell.className = "date-cell";
+      cell.textContent = day;
+
+      if (this.selectedDates.has(dateKey)) {
+        cell.classList.add("selected");
+      }
+
+      cell.addEventListener("click", () => {
+        if (this.selectedDates.has(dateKey)) {
+          this.selectedDates.delete(dateKey);
+        } else {
+          this.selectedDates.add(dateKey);
+        }
+        this.render();
+        if (typeof this.onChangeCallback === "function") {
+          this.onChangeCallback(this.getSelectedDates());
+        }
+      });
+
+      grid.appendChild(cell);
+    }
+
+    wrapper.appendChild(grid);
+    this.container.appendChild(wrapper);
+  }
 }
 
-// Get exact current local date in YYYY-MM-DD format (prevents UTC evening offset bug)
+/* =========================================
+   Date & Helper Utilities
+   ========================================= */
+
 function getTodayString() {
   const now = new Date();
   const year = now.getFullYear();
@@ -25,9 +139,11 @@ function getTodayString() {
   return `${year}-${month}-${day}`;
 }
 
-function isToday(dateStr) {
-  if (!dateStr) return false;
-  return dateStr === getTodayString();
+function formatDate(dateStr) {
+  if (!dateStr) return dash;
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  return `${parts[1]}/${parts[2]}/${parts[0]}`;
 }
 
 function getTeamsDate(dateStr) {
@@ -58,7 +174,27 @@ function getTeamsDate(dateStr) {
   }
 }
 
-// Always sets the field default to the local current date
+function formatDateArrayForTeams(dateArray) {
+  const validDates = dateArray.map((d) => d.trim()).filter(Boolean);
+  if (validDates.length === 0) return "[date]";
+
+  const formattedList = validDates.map((d) => getTeamsDate(d));
+
+  if (formattedList.length === 1) return formattedList[0];
+  if (formattedList.length === 2) return `${formattedList[0]} and ${formattedList[1]}`;
+
+  const last = formattedList.pop();
+  return `${formattedList.join(", ")}, and ${last}`;
+}
+
+function formatDateArrayForNote(dateArray) {
+  const validDates = dateArray.map((d) => d.trim()).filter(Boolean);
+  if (validDates.length === 0) return dash;
+
+  const formattedList = validDates.map((d) => formatDate(d));
+  return formattedList.join(", ");
+}
+
 function setTodayDate(id) {
   const el = document.getElementById(id);
   if (el) {
@@ -84,7 +220,9 @@ function showFeedback(el, msg) {
   if (!el) return;
   el.textContent = msg;
   el.style.display = "block";
-  setTimeout(() => { el.style.display = "none"; }, 2500);
+  setTimeout(() => {
+    el.style.display = "none";
+  }, 2500);
 }
 
 function copyText(inputEl, feedbackEl, generateFn) {
@@ -93,11 +231,14 @@ function copyText(inputEl, feedbackEl, generateFn) {
 
   const textToCopy = inputEl.value !== undefined ? inputEl.value : inputEl.innerText;
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      showFeedback(feedbackEl, "Copied Note!");
-    }).catch(() => {
-      fallbackCopyText(inputEl, feedbackEl);
-    });
+    navigator.clipboard
+      .writeText(textToCopy)
+      .then(() => {
+        showFeedback(feedbackEl, "Copied Note!");
+      })
+      .catch(() => {
+        fallbackCopyText(inputEl, feedbackEl);
+      });
   } else {
     fallbackCopyText(inputEl, feedbackEl);
   }
@@ -127,8 +268,8 @@ async function copyTeamsRichText(htmlString, plainString, feedbackEl) {
       await navigator.clipboard.write([
         new ClipboardItem({
           "text/html": htmlBlob,
-          "text/plain": textBlob
-        })
+          "text/plain": textBlob,
+        }),
       ]);
       showFeedback(feedbackEl, "Copied formatted message for Teams!");
       return;
