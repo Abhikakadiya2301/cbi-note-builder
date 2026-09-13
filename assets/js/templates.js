@@ -248,55 +248,88 @@ function initReturnedVisits() {
 /* =========================================
    Book Off Engine (Popover Multi-Date)
    ========================================= */
-function initBookOff() {
-  const form = document.getElementById("bookOffForm");
+document.addEventListener("DOMContentLoaded", function () {
+  if (document.getElementById("staffBookOffForm")) {
+    initStaffBookOff();
+  }
+});
+
+function initStaffBookOff() {
+  const form = document.getElementById("staffBookOffForm");
   const noteOut = document.getElementById("noteOutput");
   const teamsOut = document.getElementById("teamsOutput");
   const feedback = document.getElementById("copyFeedback");
 
-  const calendar = setupCalendarPopover("boDateInput", "boCalToggleBtn", "boCalendarContainer", () => {
-    generate();
-  });
+  const getFieldValue = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+  };
 
-  function generate() {
-    const selectedDates = calendar ? calendar.getSelectedDates() : [getTodayString()];
-    const dateNoteDisplay = formatDateArrayForNote(selectedDates);
-    const dateTeamsDisplay = formatDateArrayForTeams(selectedDates);
+  const dashChar = "-";
+  const getOrDashVal = (v) => (v && v !== "" ? v : dashChar);
 
-    const rawType = val("bookOffType");
-    const typeTitle = rawType === "full day" ? "Full Day" : (rawType === "partial day" ? "Partial Day" : "Partial/Full Day");
+  let calendarInstance = null;
+  if (typeof setupCalendarPopover === "function") {
+    calendarInstance = setupCalendarPopover(
+      "boDateInput",
+      "boCalToggleBtn",
+      "boCalendarContainer",
+      function () {
+        generateNote();
+      }
+    );
+  }
 
-    const rawStaff = orDash(val("staffName"));
-    const htmlStaff = formatHighlightHTML(rawStaff);
+  function generateNote() {
+    let dates = [];
+    if (calendarInstance && typeof calendarInstance.getSelectedDates === "function") {
+      dates = calendarInstance.getSelectedDates();
+    }
+    if (!dates || dates.length === 0) {
+      const todayIso = new Date().toISOString().split("T")[0];
+      dates = [todayIso];
+    }
 
-    const rawClients = val("clients") ? orDash(val("clients")) : "";
-    const htmlClients = rawClients ? formatHighlightHTML(rawClients) : "";
+    const formattedDateNote = typeof formatDateArrayForNote === "function"
+      ? formatDateArrayForNote(dates)
+      : dates.join(", ");
 
-    const numVisits = orDash(val("numVisits"));
-    const hoursReturned = formatHours(val("hoursReturned"), val("minutesReturned"));
-    const keyword = orDash(val("keyword"));
-    const description = val("description");
+    const formattedDateTeams = typeof formatDateArrayForTeams === "function"
+      ? formatDateArrayForTeams(dates)
+      : dates.join(", ");
+
+    const durationType = getFieldValue("bookOffType") || "Full Day";
+    const rawStaffName = getOrDashVal(getFieldValue("staffName"));
+    const htmlStaffName = typeof formatHighlightHTML === "function" ? formatHighlightHTML(rawStaffName) : rawStaffName;
+
+    const visitsCount = getOrDashVal(getFieldValue("numVisits"));
+    const hrsVal = getFieldValue("hoursReturned");
+    const minsVal = getFieldValue("minutesReturned");
+    const totalHoursStr = typeof formatHours === "function" ? formatHours(hrsVal, minsVal) : `${hrsVal || 0}h ${minsVal || 0}m`;
+    const keywordStr = getOrDashVal(getFieldValue("keyword"));
+
+    const rawClientsStr = getOrDashVal(getFieldValue("clients"));
+    const htmlClientsStr = typeof formatHighlightHTML === "function" ? formatHighlightHTML(rawClientsStr) : rawClientsStr;
+
+    const descStr = getFieldValue("description");
 
     if (noteOut) {
       noteOut.value = [
-        `Title - Staff Book Off (${typeTitle})`,
-        `Date: ${dateNoteDisplay} | Staff Name: ${rawStaff}`,
-        rawClients ? `Client(s): ${rawClients}` : "",
-        `Number of visits: ${numVisits}`,
-        `Total hours returned: ${hoursReturned}`,
-        `Keyword/Reason: ${keyword}`,
-        `Description: ${description}`
-      ].filter(Boolean).join("\n");
+        `Title: Staff Book Off (${durationType})`,
+        `Date: ${formattedDateNote} | Staff Name: ${rawStaffName}`,
+        `Number of visits affected: ${visitsCount}`,
+        `Total hours: ${totalHoursStr}`,
+        `Keyword/Reason: ${keywordStr}`,
+        `Client(s): ${rawClientsStr}`,
+        `Description: ${descStr}`
+      ].join("\n");
     }
 
-    const tType = rawType || "[full day/partial day]";
-    const tKeyword = keyword !== dash ? keyword : "[keyword]";
-    const tVisits = numVisits !== dash ? `${numVisits} visit(s)` : "[No of] visits";
-    const clientClause = htmlClients ? ` for client ${htmlClients}` : "";
-    const clientPlainClause = rawClients ? ` for client ${rawClients}` : "";
+    const tKeyword = keywordStr !== dashChar ? keywordStr : "[keyword]";
+    const tVisits = visitsCount !== dashChar ? `${visitsCount}` : "[number of]";
 
-    const teamsHTML = `Staff ${htmlStaff} booked off for ${dateTeamsDisplay} for ${tType}${clientClause} because of ${tKeyword}. ${tVisits} back to planner.`;
-    const teamsPlain = `Staff ${rawStaff} booked off for ${dateTeamsDisplay} for ${tType}${clientPlainClause} because of ${tKeyword}. ${tVisits} back to planner.`;
+    const teamsHTML = `Staff ${htmlStaffName} booked off (${durationType.toLowerCase()}) for ${formattedDateTeams} for ${htmlClientsStr}, ${tKeyword}. ${tVisits} visits returned to planner.`;
+    const teamsPlain = `Staff ${rawStaffName} booked off (${durationType.toLowerCase()}) for ${formattedDateTeams} for ${rawClientsStr}, ${tKeyword}. ${tVisits} visits returned to planner.`;
 
     if (teamsOut) {
       if (teamsOut.tagName === "TEXTAREA" || teamsOut.tagName === "INPUT") {
@@ -309,25 +342,31 @@ function initBookOff() {
   }
 
   if (form) {
-    form.addEventListener("input", generate);
-    form.addEventListener("change", generate);
+    form.addEventListener("input", generateNote);
+    form.addEventListener("change", generateNote);
   }
 
   const copyNoteBtn = document.getElementById("copyNoteBtn");
   if (copyNoteBtn) {
-    copyNoteBtn.addEventListener("click", () => copyText(noteOut, feedback, generate));
+    copyNoteBtn.addEventListener("click", function () {
+      if (typeof copyText === "function") {
+        copyText(noteOut, feedback, generateNote);
+      }
+    });
   }
 
   const copyTeamsBtn = document.getElementById("copyTeamsBtn");
   if (copyTeamsBtn) {
-    copyTeamsBtn.addEventListener("click", () => {
-      generate();
+    copyTeamsBtn.addEventListener("click", function () {
+      generateNote();
       if (!teamsOut) return;
       const htmlContent = teamsOut.innerHTML || teamsOut.value;
       const plainContent = teamsOut.dataset ? teamsOut.dataset.plainText : teamsOut.value;
-      copyTeamsRichText(htmlContent, plainContent, feedback);
+      if (typeof copyTeamsRichText === "function") {
+        copyTeamsRichText(htmlContent, plainContent, feedback);
+      }
     });
   }
 
-  generate();
+  generateNote();
 }
